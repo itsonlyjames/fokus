@@ -2,9 +2,9 @@ use crate::{App, TimerState};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::Stylize,
+    style::{Style, Stylize},
     text::Line,
-    widgets::{Block, BorderType, Paragraph},
+    widgets::{Block, BorderType, LineGauge, Paragraph},
 };
 
 pub fn draw(app: &App, frame: &mut Frame) {
@@ -30,9 +30,9 @@ pub fn draw(app: &App, frame: &mut Frame) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Percentage(50),
+                Constraint::Fill(1),
                 Constraint::Length(1),
-                Constraint::Percentage(50),
+                Constraint::Fill(1),
             ])
             .split(inner_area);
 
@@ -47,12 +47,22 @@ pub fn draw(app: &App, frame: &mut Frame) {
         // Render the paragraph centered inside the middle chunk (chunks[1])
         frame.render_widget(Paragraph::new(content).centered(), chunks[1]);
     } else {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(4),
+                Constraint::Fill(1),
+                Constraint::Percentage(3),
+            ])
+            .split(inner_area);
+
         // Draw the full content inside the inner area as well
         let content = format!(
-            "\n\nWork duration: {} minutes\n\
+            "Work duration: {} minutes\n\
              Break duration: {} minutes\n\n\
              {}",
-            app.args.working,
+            app.args.working_time,
             app.args.break_time,
             if app.countdown_running {
                 format!(
@@ -69,7 +79,21 @@ pub fn draw(app: &App, frame: &mut Frame) {
             }
         );
 
-        frame.render_widget(Paragraph::new(content).centered(), inner_area);
+        frame.render_widget(Paragraph::new(content).centered(), chunks[1]);
+
+        let current_pos = app.remaining_timer;
+        let total_time = match app.current_state {
+            TimerState::Work => app.args.get_working_time(),
+            TimerState::Break => app.args.get_break_time(),
+        };
+        let ratio = 1.0 - (current_pos as f64 / total_time as f64);
+
+        frame.render_widget(
+            LineGauge::default()
+                .filled_style(Style::new().cyan().on_red().bold())
+                .ratio(ratio),
+            chunks[3],
+        );
     };
 
     // let footer = Paragraph::new("Press `Esc`, `Ctrl-C` or `q` to quit").centered();

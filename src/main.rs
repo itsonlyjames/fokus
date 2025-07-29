@@ -16,9 +16,19 @@ use tokio::{
 #[command(version, about, long_about = None)]
 pub struct Cli {
     #[arg(short, long, default_value_t = 25)]
-    working: u64,
+    working_time: u64,
     #[arg(short, long, default_value_t = 5)]
     break_time: u64,
+}
+
+impl Cli {
+    pub fn get_working_time(&self) -> u64 {
+        self.working_time
+    }
+
+    pub fn get_break_time(&self) -> u64 {
+        self.break_time
+    }
 }
 
 #[derive(Debug)]
@@ -39,6 +49,8 @@ pub struct App {
     transmitter: mpsc::Sender<u64>,
     running_tx: broadcast::Sender<bool>,
     countdown_task: Option<JoinHandle<()>>,
+    transition_pending: bool,
+
 }
 
 impl App {
@@ -57,6 +69,7 @@ impl App {
                 transmitter: tx,
                 running_tx,
                 countdown_task: None,
+                transition_pending: false,
             },
             rx,
         )
@@ -89,7 +102,8 @@ impl App {
                 }
                 Some(secs) = rx.recv() => {
                     self.remaining_timer = secs;
-                    if secs == 0 {
+                    if secs == 0 && !self.transition_pending {
+                        self.transition_pending = true;
                         self.countdown_running = false;
                         self.timer_active = false;
 
@@ -136,9 +150,11 @@ impl App {
                 task.abort();
             }
 
+            self.transition_pending = false;
+
             let duration = match self.current_state {
-                TimerState::Work => self.args.working * 60,
-                TimerState::Break => self.args.break_time * 60,
+                TimerState::Work => self.args.get_working_time(),
+                TimerState::Break => self.args.get_break_time(),
             };
 
             self.remaining_timer = duration;
