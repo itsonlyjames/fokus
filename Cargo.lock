@@ -1145,7 +1145,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pomodoro"
+name = "pomo"
 version = "0.1.0"
 dependencies = [
  "async-io",
