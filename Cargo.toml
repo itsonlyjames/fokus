@@ -1,9 +1,12 @@
 [package]
-name = "pomodoro"
-description = "A Simple Rust Pomodoro Timer"
+name = "pomo"
+description = "A Simple Pomodoro TUI Built With Rust"
+repository = "https://github.com/itsonlyjames/pomodoro"
 authors = ["James Alexandre"]
+keywords = ["Pomodoro Timer", "Pomodoro", "TUI", "Pomodoro TUI"]
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 async-io = "2.5.0"
