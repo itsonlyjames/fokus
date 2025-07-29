@@ -11,9 +11,6 @@ pub fn draw(app: &App, frame: &mut Frame) {
     let title = Line::from(" Pomo! ").bold().red();
     let area = frame.area();
 
-    // let block = Block::bordered()
-    //     .title(title)
-    //     .border_type(BorderType::Rounded);
     frame.render_widget(
         Block::bordered()
             .title(title)
@@ -34,7 +31,7 @@ pub fn draw(app: &App, frame: &mut Frame) {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Percentage(50),
-                Constraint::Length(3),
+                Constraint::Length(1),
                 Constraint::Percentage(50),
             ])
             .split(inner_area);

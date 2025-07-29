@@ -7,6 +7,7 @@ mod ui;
 use ratatui::{DefaultTerminal, Frame};
 use tokio::{
     sync::{broadcast, mpsc},
+    task::JoinHandle,
     time::{Duration, sleep},
 };
 
@@ -54,6 +55,7 @@ pub struct App {
     timer_active: bool,
     transmitter: mpsc::Sender<u64>,
     running_tx: broadcast::Sender<bool>,
+    countdown_task: Option<JoinHandle<()>>,
 }
 
 impl App {
@@ -71,6 +73,7 @@ impl App {
                 timer_active: false,
                 transmitter: tx,
                 running_tx,
+                countdown_task: None,
             },
             rx,
         )
@@ -128,6 +131,10 @@ impl App {
                             Some(Notification::new().sound("Blow"))
                         ).unwrap();
 
+                        self.current_state = match self.current_state {
+                            TimerState::Work => TimerState::Break,
+                            TimerState::Break => TimerState::Work,
+                        };
                     }
                 }
                 _ = tokio::time::sleep(Duration::from_millis(100)) => {}
@@ -140,42 +147,77 @@ impl App {
         ui::draw(self, frame);
     }
 
+    fn start_timer(&mut self) {
+        if !self.timer_active {
+            if let Some(task) = self.countdown_task.take() {
+                task.abort();
+            }
+
+            let duration = match self.current_state {
+                TimerState::Work => self.args.working * 60,
+                TimerState::Break => self.args.break_time * 60,
+            };
+
+            self.remaining_timer = duration;
+            self.countdown_running = true;
+            self.timer_active = true;
+
+            let tx = self.transmitter.clone();
+            let running_rx = self.running_tx.subscribe();
+
+            self.running_tx.send(true).unwrap();
+
+            self.countdown_task = Some(tokio::spawn(async move {
+                countdown(duration, tx, running_rx).await;
+            }));
+        } else {
+            self.resume_timer();
+        }
+    }
+
+    fn resume_timer(&mut self) {
+        if !self.countdown_running {
+            self.countdown_running = true;
+            self.running_tx.send(true).unwrap();
+        }
+    }
+
+    fn pause_timer(&mut self) {
+        if self.remaining_timer > 0 {
+            self.countdown_running = !self.countdown_running;
+            self.running_tx.send(self.countdown_running).unwrap();
+        }
+    }
+
+    fn reset_timer(&mut self) {
+        if !self.countdown_running {
+            if let Some(task) = self.countdown_task.take() {
+                task.abort();
+            }
+
+            self.remaining_timer = 0;
+            self.countdown_running = false;
+            self.timer_active = false;
+            self.countdown_task = None;
+            self.running_tx.send(false).unwrap();
+        }
+    }
+
+    fn skip_session(&mut self) {
+        self.current_state = match self.current_state {
+            TimerState::Work => TimerState::Break,
+            TimerState::Break => TimerState::Work,
+        };
+    }
+
     fn on_key_event(&mut self, key: KeyEvent) {
         match (key.modifiers, key.code) {
             (_, KeyCode::Esc | KeyCode::Char('q'))
             | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
-            (_, KeyCode::Char('s')) => {
-                if !self.timer_active {
-                    let (duration, next_state) = match self.current_state {
-                        TimerState::Work => (self.args.working * 60, TimerState::Break),
-                        TimerState::Break => (self.args.break_time * 60, TimerState::Work),
-                    };
-
-                    self.remaining_timer = duration;
-                    self.countdown_running = true;
-                    self.timer_active = true;
-
-                    let tx = self.transmitter.clone();
-                    let running_rx = self.running_tx.subscribe();
-
-                    self.running_tx.send(true).unwrap();
-
-                    tokio::spawn(async move {
-                        countdown(duration, tx, running_rx).await;
-                    });
-
-                    self.current_state = next_state;
-                } else if !self.countdown_running {
-                    self.countdown_running = true;
-                    self.running_tx.send(true).unwrap();
-                }
-            }
-            (_, KeyCode::Char('p')) => {
-                if self.remaining_timer > 0 {
-                    self.countdown_running = !self.countdown_running;
-                    self.running_tx.send(self.countdown_running).unwrap();
-                }
-            }
+            (_, KeyCode::Char('s')) => self.start_timer(),
+            (_, KeyCode::Char('p')) => self.pause_timer(),
+            (_, KeyCode::Char('r')) => self.reset_timer(),
+            (_, KeyCode::Char('S')) => self.skip_session(),
             _ => {}
         }
     }
