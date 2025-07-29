@@ -18,14 +18,14 @@ pub fn draw(app: &App, frame: &mut Frame) {
         area,
     );
 
-    if app.remaining_timer == 0 && !app.countdown_running {
-        let inner_area = Rect {
-            x: area.x + 1,
-            y: area.y + 1,
-            width: area.width.saturating_sub(2),
-            height: area.height.saturating_sub(2),
-        };
+    let inner_area = Rect {
+        x: area.x + 1,
+        y: area.y + 1,
+        width: area.width.saturating_sub(2),
+        height: area.height.saturating_sub(2),
+    };
 
+    if app.remaining_timer == 0 && !app.countdown_running {
         // Use Layout to get a vertically centered chunk inside inner_area
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -48,13 +48,6 @@ pub fn draw(app: &App, frame: &mut Frame) {
         frame.render_widget(Paragraph::new(content).centered(), chunks[1]);
     } else {
         // Draw the full content inside the inner area as well
-        let inner_area = Rect {
-            x: area.x + 1,
-            y: area.y + 1,
-            width: area.width.saturating_sub(2),
-            height: area.height.saturating_sub(2),
-        };
-
         let content = format!(
             "\n\nWork duration: {} minutes\n\
              Break duration: {} minutes\n\n\

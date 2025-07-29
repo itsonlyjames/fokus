@@ -3,12 +3,13 @@ use color_eyre::Result;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use futures::{FutureExt, StreamExt};
 use mac_notification_sys::*;
+mod timer;
 mod ui;
 use ratatui::{DefaultTerminal, Frame};
 use tokio::{
     sync::{broadcast, mpsc},
     task::JoinHandle,
-    time::{Duration, sleep},
+    time::Duration,
 };
 
 #[derive(Parser, Debug)]
@@ -24,24 +25,6 @@ pub struct Cli {
 enum TimerState {
     Work,
     Break,
-}
-
-async fn countdown(seconds: u64, tx: mpsc::Sender<u64>, mut running_rx: broadcast::Receiver<bool>) {
-    let mut remaining = seconds;
-    let mut is_running = true;
-
-    while remaining > 0 {
-        tokio::select! {
-            Ok(running) = running_rx.recv() => {
-                is_running = running;
-            }
-            _ = sleep(Duration::from_secs(1)), if is_running => {
-                remaining -= 1;
-                let _ = tx.send(remaining).await;
-            }
-        }
-    }
-    let _ = tx.send(0).await;
 }
 
 #[derive(Debug)]
@@ -168,7 +151,7 @@ impl App {
             self.running_tx.send(true).unwrap();
 
             self.countdown_task = Some(tokio::spawn(async move {
-                countdown(duration, tx, running_rx).await;
+                timer::countdown(duration, tx, running_rx).await;
             }));
         } else {
             self.resume_timer();
@@ -223,9 +206,7 @@ impl App {
     }
 
     fn quit(&mut self) {
-        if !self.countdown_running {
-            self.app_running = false;
-        }
+        self.app_running = false;
     }
 }
 
