@@ -1,5 +1,5 @@
 [package]
-name = "pomo"
+name = "fokus"
 description = "A Simple Pomodoro TUI Built With Rust"
 repository = "https://github.com/itsonlyjames/pomodoro"
 authors = ["James Alexandre"]
