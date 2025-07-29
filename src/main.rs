@@ -23,11 +23,11 @@ pub struct Cli {
 
 impl Cli {
     pub fn get_working_time(&self) -> u64 {
-        self.working_time
+        self.working_time * 60
     }
 
     pub fn get_break_time(&self) -> u64 {
-        self.break_time
+        self.break_time * 60
     }
 }
 
