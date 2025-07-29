@@ -96,10 +96,15 @@ impl App {
                     if secs == 0 {
                         self.is_countdown_running = false;
 
-                        let bundle = get_bundle_identifier_or_default("terminal");
-                        set_application(&bundle).unwrap();
+                        #[cfg(target_os="linux")]
+                        Notification::new()
+                            .summary("Pomodoro")
+                            .body("Session Finished! Time to take a break")
+                            .icon("alarm") // Optional: use a system icon
+                            .show();
 
-                        // ✅ Send notification
+
+                        #[cfg(target_os = "macos")]
                         send_notification(
                             "Pomodoro",
                             Some("Session Finished!"),
@@ -148,13 +153,17 @@ impl App {
     }
 
     fn quit(&mut self) {
-        self.running = false;
+        if !self.is_countdown_running {
+            self.running = false;
+        }
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
+    let bundle = get_bundle_identifier_or_default("terminal");
+    set_application(&bundle).unwrap();
     let args = Cli::parse();
     let terminal = ratatui::init();
     let (app, rx, _running_rx) = App::new(args);
