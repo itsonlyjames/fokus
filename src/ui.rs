@@ -4,12 +4,14 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
     text::Line,
-    widgets::{Block, BorderType, LineGauge, Paragraph},
+    widgets::{Block, BorderType, Clear, LineGauge, Paragraph},
 };
 
 pub fn draw(app: &App, frame: &mut Frame) {
     let title = Line::from(" Pomo! ").bold().red();
     let area = frame.area();
+
+    frame.render_widget(Clear, area);
 
     frame.render_widget(
         Block::bordered()
