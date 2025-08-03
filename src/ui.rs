@@ -2,9 +2,9 @@ use crate::{App, TimerState};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Style, Stylize},
+    style::Stylize,
     text::Line,
-    widgets::{Block, BorderType, Clear, LineGauge, Paragraph},
+    widgets::{Block, BorderType, Clear, Gauge, Paragraph},
 };
 
 pub fn draw(app: &App, frame: &mut Frame) {
@@ -90,12 +90,7 @@ pub fn draw(app: &App, frame: &mut Frame) {
         };
         let ratio = 1.0 - (current_pos as f64 / total_time as f64);
 
-        frame.render_widget(
-            LineGauge::default()
-                .filled_style(Style::new().cyan().on_red().bold())
-                .ratio(ratio),
-            chunks[3],
-        );
+        frame.render_widget(Gauge::default().ratio(ratio), chunks[3]);
     };
 
     // let footer = Paragraph::new("Press `Esc`, `Ctrl-C` or `q` to quit").centered();
