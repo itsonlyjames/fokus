@@ -28,44 +28,41 @@ pub fn draw(app: &App, frame: &mut Frame) {
     };
 
     if app.remaining_timer == 0 && !app.countdown_running {
-        // Use Layout to get a vertically centered chunk inside inner_area
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Fill(1),
-                Constraint::Length(1),
-                Constraint::Fill(1),
-            ])
-            .split(inner_area);
-
-        let content = format!(
-            "Press 's' to start {}",
-            match app.current_state {
-                TimerState::Work => "session",
-                TimerState::Break => "break",
-            }
-        );
-
-        // Render the paragraph centered inside the middle chunk (chunks[1])
-        frame.render_widget(Paragraph::new(content).centered(), chunks[1]);
-    } else {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Fill(1),
                 Constraint::Length(4),
                 Constraint::Fill(1),
+            ])
+            .split(inner_area);
+
+        let content = format!(
+            "Work duration: {} minutes\n\
+            Break duration: {} minutes\n\n\
+            Press 's' to start {}",
+            app.args.working_time,
+            app.args.break_time,
+            match app.current_state {
+                TimerState::Work => "session",
+                TimerState::Break => "break",
+            }
+        );
+
+        frame.render_widget(Paragraph::new(content).centered(), chunks[1]);
+    } else {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(1),
+                Constraint::Fill(1),
                 Constraint::Percentage(3),
             ])
             .split(inner_area);
 
-        // Draw the full content inside the inner area as well
         let content = format!(
-            "Work duration: {} minutes\n\
-             Break duration: {} minutes\n\n\
-             {}",
-            app.args.working_time,
-            app.args.break_time,
+            "{}",
             if app.countdown_running {
                 format!(
                     "⏳ Time remaining: {:02}:{:02}",
