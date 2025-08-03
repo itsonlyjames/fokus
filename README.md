@@ -29,4 +29,6 @@ Options:
 ## TODO
 
 - [ ] Notification clicking takes you to window
-- [ ] Fix skip session panicking
+- [ ] Notification actions
+    - Need to figure out how to async wait notification but still run the main thread
+- [x] Fix skip session panicking
