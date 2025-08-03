@@ -3,8 +3,6 @@ use color_eyre::Result;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use futures::{FutureExt, StreamExt};
 use mac_notification_sys::*;
-mod timer;
-mod ui;
 use ratatui::{DefaultTerminal, Frame};
 use tokio::{
     sync::{broadcast, mpsc},
@@ -12,12 +10,17 @@ use tokio::{
     time::Duration,
 };
 
+mod timer;
+mod ui;
+mod cli;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Cli {
     #[arg(short, long, default_value_t = 25)]
+    #[arg(short, long, default_value_t = 25, value_parser = cli::validate_time)]
     working_time: u64,
     #[arg(short, long, default_value_t = 5)]
+    #[arg(short, long, default_value_t = 5, value_parser = cli::validate_time)]
     break_time: u64,
 }
 
