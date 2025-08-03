@@ -10,16 +10,16 @@ use tokio::{
     time::Duration,
 };
 
+mod cli;
+mod notification_actions;
 mod timer;
 mod ui;
-mod cli;
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Cli {
-    #[arg(short, long, default_value_t = 25)]
     #[arg(short, long, default_value_t = 25, value_parser = cli::validate_time)]
     working_time: u64,
-    #[arg(short, long, default_value_t = 5)]
     #[arg(short, long, default_value_t = 5, value_parser = cli::validate_time)]
     break_time: u64,
 }
@@ -53,7 +53,6 @@ pub struct App {
     running_tx: broadcast::Sender<bool>,
     countdown_task: Option<JoinHandle<()>>,
     transition_pending: bool,
-
 }
 
 impl App {
@@ -111,8 +110,8 @@ impl App {
                         self.timer_active = false;
 
                         let (summary, body) = match self.current_state {
-                            TimerState::Break => ("Session Finished!", "Time to take a break"),
-                            TimerState::Work => ("Break Finished", "Time for another session")
+                            TimerState::Work => ("Session Finished!", "Time to take a break"),
+                            TimerState::Break => ("Break Finished", "Time for another session")
                         };
 
                         #[cfg(target_os="linux")]
@@ -124,12 +123,19 @@ impl App {
 
 
                         #[cfg(target_os = "macos")]
-                        send_notification(
-                            "Pomodoro",
-                            Some(summary),
-                            body,
-                            Some(Notification::new().sound("Blow"))
-                        ).unwrap();
+                        let response = Notification::default()
+                            .title("Pomodoro")
+                            .subtitle(summary)
+                            .message(body)
+                            .sound("Blow")
+                            // .main_button(MainButton::SingleAction("Start Next Session"))
+                            .send();
+
+                        if let Ok(response) = response {
+                            notification_actions::handle_response(response);
+                        } else {
+                           eprint!("Failed to send notification");
+                        };
 
                         self.current_state = match self.current_state {
                             TimerState::Work => TimerState::Break,
@@ -206,6 +212,16 @@ impl App {
     }
 
     fn skip_session(&mut self) {
+        if self.countdown_running {
+            if let Some(task) = self.countdown_task.take() {
+                task.abort();
+            }
+            self.remaining_timer = 0;
+            self.countdown_running = false;
+            self.timer_active = false;
+            self.countdown_task = None;
+            self.running_tx.send(false).unwrap();
+        }
         self.current_state = match self.current_state {
             TimerState::Work => TimerState::Break,
             TimerState::Break => TimerState::Work,
@@ -226,6 +242,9 @@ impl App {
 
     fn quit(&mut self) {
         self.app_running = false;
+        use crossterm::execute;
+        use crossterm::terminal::{Clear, ClearType};
+        let _ = execute!(std::io::stdout(), Clear(ClearType::All));
     }
 }
 
