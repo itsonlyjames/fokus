@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 pub fn draw(app: &App, frame: &mut Frame) {
-    let title = Line::from(" Pomo! ").bold().red();
+    let title = Line::from("Pomodoro").bold().red();
     let area = frame.area();
 
     frame.render_widget(Clear, area);
