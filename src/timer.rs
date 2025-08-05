@@ -8,13 +8,19 @@ pub async fn countdown(seconds: u64, tx: Sender<u64>, mut running_rx: broadcast:
     let mut is_running = true;
 
     while remaining > 0 {
-        tokio::select! {
-            Ok(running) = running_rx.recv() => {
-                is_running = running;
+        if is_running {
+            tokio::select! {
+                Ok(running) = running_rx.recv() => {
+                    is_running = running;
+                }
+                _ = sleep(Duration::from_secs(1)) => {
+                    remaining -= 1;
+                    let _ = tx.send(remaining).await;
+                }
             }
-            _ = sleep(Duration::from_secs(1)), if is_running => {
-                remaining -= 1;
-                let _ = tx.send(remaining).await;
+        } else {
+            if let Ok(running) = running_rx.recv().await {
+                is_running = running;
             }
         }
     }

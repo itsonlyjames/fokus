@@ -143,7 +143,6 @@ impl App {
                         };
                     }
                 }
-                _ = tokio::time::sleep(Duration::from_millis(100)) => {}
             }
         }
         Ok(())
