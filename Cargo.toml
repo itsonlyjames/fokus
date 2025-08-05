@@ -4,7 +4,7 @@ description = "A Simple Pomodoro TUI Built With Rust"
 repository = "https://github.com/itsonlyjames/pomodoro"
 authors = ["James Alexandre"]
 keywords = ["Pomodoro", "Timer", "TUI"]
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 license = "MIT"
 
