@@ -4,7 +4,7 @@ description = "A Simple Pomodoro TUI Built With Rust"
 repository = "https://github.com/itsonlyjames/pomodoro"
 authors = ["James Alexandre"]
 keywords = ["Pomodoro", "Timer", "TUI"]
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 license = "MIT"
 
@@ -15,7 +15,6 @@ color-eyre = "0.6.5"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 futures = "0.3.31"
 futures-lite = "2.6.0"
-mac-notification-sys = "0.6.6"
 notify-rust = "4.11.7"
 ratatui = "0.29.0"
 tokio = { version = "1.47.0", features = ["full"] }

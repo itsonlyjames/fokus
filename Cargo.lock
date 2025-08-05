@@ -799,7 +799,7 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "fokus"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "async-io",
  "clap",
@@ -808,7 +808,6 @@ dependencies = [
  "crossterm 0.29.0",
  "futures",
  "futures-lite",
- "mac-notification-sys",
  "notify-rust",
  "ratatui",
  "tokio",

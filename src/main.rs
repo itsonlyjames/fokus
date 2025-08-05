@@ -2,7 +2,7 @@ use clap::Parser;
 use color_eyre::Result;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use futures::{FutureExt, StreamExt};
-use mac_notification_sys::*;
+use notify_rust::{Notification, get_bundle_identifier_or_default, set_application};
 use ratatui::{DefaultTerminal, Frame};
 use tokio::{
     sync::{broadcast, mpsc},
@@ -10,7 +10,6 @@ use tokio::{
 };
 
 mod cli;
-mod notification_actions;
 mod timer;
 mod ui;
 
@@ -109,32 +108,26 @@ impl App {
                         self.timer_active = false;
 
                         let (summary, body) = match self.current_state {
-                            TimerState::Work => ("Session Finished!", "Time to take a break"),
+                            TimerState::Work => ("Session Finished", "Time to take a break"),
                             TimerState::Break => ("Break Finished", "Time for another session")
                         };
 
-                        #[cfg(target_os="linux")]
+
+
                         Notification::new()
                             .summary("Pomodoro")
-                            .body(format!("{} {}", summary, body))
+                            .body(summary)
+                            // .message(body)
+                            .sound_name("Blow")
                             .icon("alarm")
-                            .show();
-
-
-                        #[cfg(target_os = "macos")]
-                        let response = Notification::default()
-                            .title("Pomodoro")
-                            .subtitle(summary)
-                            .message(body)
-                            .sound("Blow")
                             // .main_button(MainButton::SingleAction("Start Next Session"))
-                            .send();
+                            .show()?;
 
-                        if let Ok(response) = response {
-                            notification_actions::handle_response(response);
-                        } else {
-                           eprint!("Failed to send notification");
-                        };
+                        // if let Ok(response) = response {
+                        //     notification_actions::handle_response(response);
+                        // } else {
+                        //    eprint!("Failed to send notification");
+                        // };
 
                         self.current_state = match self.current_state {
                             TimerState::Work => TimerState::Break,
@@ -254,6 +247,7 @@ async fn main() -> Result<()> {
     console_subscriber::init();
 
     // Set identifier for notifications
+    #[cfg(target_os = "macos")]
     let bundle = get_bundle_identifier_or_default("terminal");
     set_application(&bundle).unwrap();
 
