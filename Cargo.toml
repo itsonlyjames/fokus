@@ -19,3 +19,11 @@ mac-notification-sys = "0.6.6"
 notify-rust = "4.11.7"
 ratatui = "0.29.0"
 tokio = { version = "1.47.0", features = ["full"] }
+
+[dependencies.console-subscriber]
+version = "0.2"
+optional = true
+
+[features]
+default = []
+debug = ["console-subscriber"]

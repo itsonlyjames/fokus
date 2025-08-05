@@ -7,7 +7,6 @@ use ratatui::{DefaultTerminal, Frame};
 use tokio::{
     sync::{broadcast, mpsc},
     task::JoinHandle,
-    time::Duration,
 };
 
 mod cli;
@@ -250,6 +249,9 @@ impl App {
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
+
+    #[cfg(feature = "debug")]
+    console_subscriber::init();
 
     // Set identifier for notifications
     let bundle = get_bundle_identifier_or_default("terminal");
