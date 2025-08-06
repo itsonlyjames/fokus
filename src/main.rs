@@ -164,7 +164,7 @@ impl App {
             let tx = self.transmitter.clone();
             let running_rx = self.running_tx.subscribe();
 
-            self.running_tx.send(true).unwrap();
+            let _ = self.running_tx.send(true);
 
             self.countdown_task = Some(tokio::spawn(async move {
                 timer::countdown(duration, tx, running_rx).await;
@@ -177,14 +177,14 @@ impl App {
     fn resume_timer(&mut self) {
         if !self.countdown_running {
             self.countdown_running = true;
-            self.running_tx.send(true).unwrap();
+            let _ = self.running_tx.send(true);
         }
     }
 
     fn pause_timer(&mut self) {
-        if self.remaining_timer > 0 {
+        if self.timer_active {
             self.countdown_running = !self.countdown_running;
-            self.running_tx.send(self.countdown_running).unwrap();
+            let _ = self.running_tx.send(self.countdown_running);
         }
     }
 
@@ -198,7 +198,10 @@ impl App {
             self.countdown_running = false;
             self.timer_active = false;
             self.countdown_task = None;
-            self.running_tx.send(false).unwrap();
+            let _ = self.running_tx.send(false);
+        } else {
+            // hanlde confirmation of reset when timer running
+            // so as to ignore accidental presses
         }
     }
 
