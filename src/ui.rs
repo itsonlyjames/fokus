@@ -122,6 +122,7 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
                 )
             }
         );
+
         frame.render_widget(Paragraph::new(timer_content).centered(), chunks[1]);
 
         let current_pos = app.remaining_timer;
@@ -137,9 +138,9 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
                 }
             }
         };
-        eprintln!("{:?}", total_time);
+
         let ratio = 1.0 - (current_pos as f64 / total_time as f64);
-        eprintln!("{:?}", ratio);
+
         if ratio > 0.0 && ratio < 1.0 {
             frame.render_widget(
                 Gauge::default()
