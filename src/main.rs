@@ -10,6 +10,8 @@ use tokio::{
 };
 
 mod cli;
+mod config;
+mod settings;
 mod timer;
 mod ui;
 
@@ -20,6 +22,10 @@ pub struct Cli {
     working_time: u64,
     #[arg(short, long, default_value_t = 5, value_parser = cli::validate_time)]
     break_time: u64,
+    #[arg(short, long, default_value_t = 15, value_parser = cli::validate_time)]
+    long_break_time: u64,
+    #[arg(short, long, default_value_t = 2, value_parser = cli::validate_time)]
+    sessions_until_break_time: u64,
 }
 
 impl Cli {
@@ -51,12 +57,27 @@ pub struct App {
     running_tx: broadcast::Sender<bool>,
     countdown_task: Option<JoinHandle<()>>,
     transition_pending: bool,
+    current_screen: settings::Screen,
+    settings: settings::Settings,
+    settings_field: settings::SettingsField,
+    editing_field: bool,
+    input_buffer: String,
+    session_count: u64,
+    settings_saved_message: Option<std::time::Instant>,
 }
 
 impl App {
     pub fn new(args: Cli) -> (Self, mpsc::Receiver<u64>) {
         let (tx, rx) = mpsc::channel(100);
         let (running_tx, _) = broadcast::channel(100);
+
+        let settings = config::Config::load_settings().unwrap_or_else(|_| settings::Settings {
+            working_time: args.working_time,
+            break_time: args.break_time,
+            long_break_time: args.long_break_time,
+            sessions_until_long_break: args.sessions_until_break_time,
+        });
+
         (
             Self {
                 app_running: true,
@@ -70,6 +91,13 @@ impl App {
                 running_tx,
                 countdown_task: None,
                 transition_pending: false,
+                current_screen: settings::Screen::Timer,
+                settings,
+                settings_field: settings::SettingsField::WorkingTime,
+                editing_field: false,
+                input_buffer: String::new(),
+                session_count: 0,
+                settings_saved_message: None,
             },
             rx,
         )
@@ -108,7 +136,14 @@ impl App {
                         self.timer_active = false;
 
                         let (summary, body) = match self.current_state {
-                            TimerState::Work => ("Session Finished", "Time to take a break"),
+                            TimerState::Work => {
+                                self.session_count += 1;
+                                if self.session_count % self.settings.sessions_until_long_break == 0 {
+                                    ("Session Finished", "Time for a long break!")
+                                } else {
+                                    ("Session Finished", "Time for a short break")
+                                }
+                            },
                             TimerState::Break => ("Break Finished", "Time for another session")
                         };
 
@@ -153,8 +188,16 @@ impl App {
             self.transition_pending = false;
 
             let duration = match self.current_state {
-                TimerState::Work => self.args.get_working_time(),
-                TimerState::Break => self.args.get_break_time(),
+                TimerState::Work => self.settings.get_working_time_seconds(),
+                TimerState::Break => {
+                    if self.session_count > 0
+                        && self.session_count % self.settings.sessions_until_long_break == 0
+                    {
+                        self.settings.get_long_break_time_seconds()
+                    } else {
+                        self.settings.get_break_time_seconds()
+                    }
+                }
             };
 
             self.remaining_timer = duration;
@@ -206,23 +249,53 @@ impl App {
     }
 
     fn skip_session(&mut self) {
-        if self.countdown_running {
-            if let Some(task) = self.countdown_task.take() {
-                task.abort();
-            }
-            self.remaining_timer = 0;
-            self.countdown_running = false;
-            self.timer_active = false;
-            self.countdown_task = None;
-            self.running_tx.send(false).unwrap();
+        if let Some(task) = self.countdown_task.take() {
+            task.abort();
         }
+        self.remaining_timer = 0;
+        self.countdown_running = false;
+        self.timer_active = false;
+        self.countdown_task = None;
+        self.running_tx.send(false).unwrap();
+        self.session_count += 1;
         self.current_state = match self.current_state {
             TimerState::Work => TimerState::Break,
             TimerState::Break => TimerState::Work,
         };
     }
 
+    pub fn get_current_screen(&self) -> &settings::Screen {
+        &self.current_screen
+    }
+
+    pub fn get_settings(&self) -> &settings::Settings {
+        &self.settings
+    }
+
+    pub fn get_settings_field(&self) -> &settings::SettingsField {
+        &self.settings_field
+    }
+
+    pub fn is_editing_field(&self) -> bool {
+        self.editing_field
+    }
+
+    pub fn get_input_buffer(&self) -> &str {
+        &self.input_buffer
+    }
+
+    pub fn get_session_count(&self) -> u64 {
+        self.session_count
+    }
+
     fn on_key_event(&mut self, key: KeyEvent) {
+        match self.current_screen {
+            settings::Screen::Timer => self.handle_timer_input(key),
+            settings::Screen::Settings => self.handle_settings_input(key),
+        }
+    }
+
+    fn handle_timer_input(&mut self, key: KeyEvent) {
         match (key.modifiers, key.code) {
             (_, KeyCode::Esc | KeyCode::Char('q'))
             | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
@@ -230,8 +303,109 @@ impl App {
             (_, KeyCode::Char('p')) => self.pause_timer(),
             (_, KeyCode::Char('r')) => self.reset_timer(),
             (_, KeyCode::Char('S')) => self.skip_session(),
+            (_, KeyCode::Char('o')) => self.current_screen = settings::Screen::Settings, // 'o' for options
             _ => {}
         }
+    }
+
+    fn handle_settings_input(&mut self, key: KeyEvent) {
+        if self.editing_field {
+            self.handle_field_editing(key);
+        } else {
+            self.handle_settings_navigation(key);
+        }
+    }
+
+    fn handle_settings_navigation(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => self.current_screen = settings::Screen::Timer,
+            KeyCode::Up | KeyCode::Char('k') => self.previous_setting(),
+            KeyCode::Down | KeyCode::Char('j') => self.next_setting(),
+            KeyCode::Enter => self.start_editing(),
+            _ => {}
+        }
+    }
+
+    fn handle_field_editing(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => self.cancel_editing(),
+            KeyCode::Enter => self.save_field(),
+            KeyCode::Backspace => {
+                self.input_buffer.pop();
+            }
+            KeyCode::Char(c) if c.is_ascii_digit() => {
+                if self.input_buffer.len() < 3 {
+                    // Limit to 999 minutes
+                    self.input_buffer.push(c);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn previous_setting(&mut self) {
+        self.settings_field = match self.settings_field {
+            settings::SettingsField::WorkingTime => settings::SettingsField::SessionsUntilLongBreak,
+            settings::SettingsField::BreakTime => settings::SettingsField::WorkingTime,
+            settings::SettingsField::LongBreakTime => settings::SettingsField::BreakTime,
+            settings::SettingsField::SessionsUntilLongBreak => {
+                settings::SettingsField::LongBreakTime
+            }
+        };
+    }
+
+    fn next_setting(&mut self) {
+        self.settings_field = match self.settings_field {
+            settings::SettingsField::WorkingTime => settings::SettingsField::BreakTime,
+            settings::SettingsField::BreakTime => settings::SettingsField::LongBreakTime,
+            settings::SettingsField::LongBreakTime => {
+                settings::SettingsField::SessionsUntilLongBreak
+            }
+            settings::SettingsField::SessionsUntilLongBreak => settings::SettingsField::WorkingTime,
+        };
+    }
+
+    fn start_editing(&mut self) {
+        self.editing_field = true;
+        self.input_buffer = match self.settings_field {
+            settings::SettingsField::WorkingTime => self.settings.working_time.to_string(),
+            settings::SettingsField::BreakTime => self.settings.break_time.to_string(),
+            settings::SettingsField::LongBreakTime => self.settings.long_break_time.to_string(),
+            settings::SettingsField::SessionsUntilLongBreak => {
+                self.settings.sessions_until_long_break.to_string()
+            }
+        };
+    }
+
+    fn cancel_editing(&mut self) {
+        self.editing_field = false;
+        self.input_buffer.clear();
+    }
+
+    fn save_field(&mut self) {
+        if let Ok(value) = self.input_buffer.parse::<u64>() {
+            if value > 0 {
+                match self.settings_field {
+                    settings::SettingsField::WorkingTime => self.settings.working_time = value,
+                    settings::SettingsField::BreakTime => self.settings.break_time = value,
+                    settings::SettingsField::LongBreakTime => self.settings.long_break_time = value,
+                    settings::SettingsField::SessionsUntilLongBreak => {
+                        self.settings.sessions_until_long_break = value
+                    }
+                }
+
+                match config::Config::save_settings(&self.settings) {
+                    Ok(_) => {
+                        self.settings_saved_message = Some(std::time::Instant::now());
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to save settings: {}", e);
+                    }
+                }
+            }
+        }
+        self.editing_field = false;
+        self.input_buffer.clear();
     }
 
     fn quit(&mut self) {
