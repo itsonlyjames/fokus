@@ -13,9 +13,6 @@ impl Config {
 
         let app_config_dir = config_dir.join("fokus");
 
-        // eprintln!("Debug - config_dir: {:?}", config_dir); // Goes to stderr
-        // eprintln!("Debug - app_config_dir: {:?}", app_config_dir);
-
         // Create the directory if it doesn't exist
         fs::create_dir_all(&app_config_dir)?;
         Ok(app_config_dir.join("settings.toml"))
@@ -23,7 +20,6 @@ impl Config {
 
     pub fn load_settings() -> Result<settings::Settings> {
         let config_path = Self::get_config_path()?;
-        println!("{:?}", config_path);
 
         if config_path.exists() {
             let config_str = fs::read_to_string(config_path)?;
