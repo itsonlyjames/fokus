@@ -1,5 +1,5 @@
 use crate::settings;
-use color_eyre::Result; // Add this import
+use color_eyre::Result;
 use dirs::config_dir;
 use std::fs;
 use std::path::PathBuf;
@@ -8,7 +8,6 @@ pub struct Config;
 
 impl Config {
     fn get_config_path() -> Result<PathBuf> {
-        // Use Result instead of Result<PathBuf, _>
         let config_dir = config_dir()
             .ok_or_else(|| color_eyre::eyre::eyre!("Could not find config directory"))?;
 
@@ -23,7 +22,6 @@ impl Config {
     }
 
     pub fn load_settings() -> Result<settings::Settings> {
-        // Use Result instead of Result<settings::Settings, _>
         let config_path = Self::get_config_path()?;
         println!("{:?}", config_path);
 
@@ -38,7 +36,6 @@ impl Config {
     }
 
     pub fn save_settings(settings: &settings::Settings) -> Result<()> {
-        // Use Result<()> instead of Result<(), _>
         let config_path = Self::get_config_path()?;
         let config_str = toml::to_string_pretty(settings)?;
         fs::write(config_path, config_str)?;

@@ -303,7 +303,7 @@ impl App {
             (_, KeyCode::Char('p')) => self.pause_timer(),
             (_, KeyCode::Char('r')) => self.reset_timer(),
             (_, KeyCode::Char('S')) => self.skip_session(),
-            (_, KeyCode::Char('o')) => self.current_screen = settings::Screen::Settings, // 'o' for options
+            (_, KeyCode::Char('o')) => self.current_screen = settings::Screen::Settings, 
             _ => {}
         }
     }

@@ -85,10 +85,10 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Min(0),
-                Constraint::Length(3), // Timer display
+                Constraint::Length(3),
                 Constraint::Length(1),
                 Constraint::Min(0),
-                Constraint::Length(1), // Controls
+                Constraint::Length(1),
             ])
             .split(inner_area);
 
