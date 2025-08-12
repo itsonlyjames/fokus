@@ -133,7 +133,7 @@ impl App {
                         self.countdown_running = false;
                         self.timer_active = false;
 
-                        let (summary, body) = match self.current_state {
+                        let (summary, _body) = match self.current_state {
                             TimerState::Work => {
                                 self.session_count += 1;
                                 if self.session_count % self.settings.sessions_until_long_break == 0 {
@@ -142,7 +142,12 @@ impl App {
                                     ("Session Finished", "Time for a short break")
                                 }
                             },
-                            TimerState::Break => ("Break Finished", "Time for another session")
+                            TimerState::Break => {
+                                if self.session_count > 0 && self.session_count % self.settings.sessions_until_long_break == 0 {
+                                    self.session_count = 0;
+                                }
+                                ("Break Finished", "Time for another session")
+                            }
                         };
 
 
@@ -247,15 +252,21 @@ impl App {
     }
 
     fn skip_session(&mut self) {
-        if let Some(task) = self.countdown_task.take() {
-            task.abort();
+        if self.countdown_running {
+            if let Some(task) = self.countdown_task.take() {
+                task.abort();
+            }
+            self.countdown_task = None;
+            self.running_tx.send(false).unwrap();
         }
         self.remaining_timer = 0;
         self.countdown_running = false;
         self.timer_active = false;
-        self.countdown_task = None;
-        self.running_tx.send(false).unwrap();
-        self.session_count += 1;
+
+        if matches!(self.current_state, TimerState::Work) {
+            self.session_count += 1;
+        }
+
         self.current_state = match self.current_state {
             TimerState::Work => TimerState::Break,
             TimerState::Break => TimerState::Work,
@@ -301,7 +312,7 @@ impl App {
             (_, KeyCode::Char('p')) => self.pause_timer(),
             (_, KeyCode::Char('r')) => self.reset_timer(),
             (_, KeyCode::Char('S')) => self.skip_session(),
-            (_, KeyCode::Char('o')) => self.current_screen = settings::Screen::Settings, 
+            (_, KeyCode::Char('o')) => self.current_screen = settings::Screen::Settings,
             _ => {}
         }
     }

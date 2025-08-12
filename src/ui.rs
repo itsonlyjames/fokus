@@ -7,7 +7,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Clear, Gauge, List, ListItem, Paragraph},
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
 };
 
 pub fn draw(app: &App, frame: &mut Frame) {
@@ -47,33 +47,41 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
 
         let settings = app.get_settings();
         let session_count = app.get_session_count();
-        let next_break_type =
-            if session_count > 0 && (session_count + 1) % settings.sessions_until_long_break == 0 {
-                format!("long break ({} min)", settings.long_break_time)
-            } else {
-                format!("short break ({} min)", settings.break_time)
-            };
+
+        // let next_break_type =
+        //     if session_count > 0 && (session_count + 1) % settings.sessions_until_long_break == 0 {
+        //         format!("long break ({} min)", settings.long_break_time)
+        //     } else {
+        //         format!("short break ({} min)", settings.break_time)
+        //     };
 
         let content = format!(
             "Work duration: {} minutes\n\
             Break duration: {} / {} minutes\n\
-            Sessions completed: {}\n\
-            Next break: {}\n\n\
+            Sessions completed: {}\n\n\
             Press 's' to start {}",
             settings.working_time,
             settings.break_time,
             settings.long_break_time,
             session_count,
-            next_break_type,
             match app.current_state {
                 TimerState::Work => "work session",
-                TimerState::Break => "break",
+                TimerState::Break => {
+                    let settings = app.get_settings();
+                    let session_count = app.get_session_count();
+                    if session_count > 0 && session_count % settings.sessions_until_long_break == 0
+                    {
+                        "long break"
+                    } else {
+                        "short break"
+                    }
+                }
             }
         );
         frame.render_widget(Paragraph::new(content).centered(), chunks[1]);
 
         let controls =
-            "Controls: 's' start | 'p' pause | 'r' reset | 'S' skip | 'o' settings | 'q' quit";
+            "'s' start | 'p' pause | 'r' reset | 'S' skip | 'o' settings | 'q' quit";
         frame.render_widget(
             Paragraph::new(controls)
                 .centered()
@@ -86,7 +94,7 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
             .constraints([
                 Constraint::Min(0),
                 Constraint::Length(3),
-                Constraint::Length(1),
+                // Constraint::Length(1),
                 Constraint::Min(0),
                 Constraint::Length(1),
             ])
@@ -125,40 +133,44 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
 
         frame.render_widget(Paragraph::new(timer_content).centered(), chunks[1]);
 
-        let current_pos = app.remaining_timer;
-        let settings = app.get_settings();
-        let total_time = match app.current_state {
-            TimerState::Work => settings.get_working_time_seconds(),
-            TimerState::Break => {
-                let session_count = app.get_session_count();
-                if session_count > 0 && session_count % settings.sessions_until_long_break == 0 {
-                    settings.get_long_break_time_seconds()
-                } else {
-                    settings.get_break_time_seconds()
-                }
-            }
+        // let current_pos = app.remaining_timer;
+        // let settings = app.get_settings();
+        // let total_time = match app.current_state {
+        //     TimerState::Work => settings.get_working_time_seconds(),
+        //     TimerState::Break => {
+        //         let session_count = app.get_session_count();
+        //         if session_count > 0 && session_count % settings.sessions_until_long_break == 0 {
+        //             settings.get_long_break_time_seconds()
+        //         } else {
+        //             settings.get_break_time_seconds()
+        //         }
+        //     }
+        // };
+
+        // let ratio = 1.0 - (current_pos as f64 / total_time as f64);
+        //
+        // if ratio > 0.0 && ratio < 1.0 {
+        //     frame.render_widget(
+        //         Gauge::default()
+        //             .ratio(ratio)
+        //             .style(match app.current_state {
+        //                 TimerState::Work => Style::default().fg(Color::Red),
+        //                 TimerState::Break => Style::default().fg(Color::Green),
+        //             }),
+        //         chunks[2],
+        //     );
+        // }
+
+        let controls = match app.countdown_running {
+            true => "'p' pause/resume | 'S' skip | 'o' settings | 'q' quit",
+            false => "'p' pause/resume | 'r' reset | 'S' skip | 'o' settings | 'q' quit"
         };
 
-        let ratio = 1.0 - (current_pos as f64 / total_time as f64);
-
-        if ratio > 0.0 && ratio < 1.0 {
-            frame.render_widget(
-                Gauge::default()
-                    .ratio(ratio)
-                    .style(match app.current_state {
-                        TimerState::Work => Style::default().fg(Color::Red),
-                        TimerState::Break => Style::default().fg(Color::Green),
-                    }),
-                chunks[2],
-            );
-        }
-
-        let controls = "'p' pause/resume | 'r' reset | 'S' skip | 'o' settings | 'q' quit";
         frame.render_widget(
             Paragraph::new(controls)
                 .centered()
                 .style(Style::default().fg(Color::Gray)),
-            chunks[4],
+            chunks[3],
         );
     };
 }
