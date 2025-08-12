@@ -34,4 +34,4 @@ Options:
 - [ ] Notification actions
   - Need to figure out how to async wait notification but still run the main thread
 - [x] Fix skip session panicking
-- [ ] Fix session counter not working every nth time
+- [x] Fix session counter not working every nth time
