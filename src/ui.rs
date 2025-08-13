@@ -18,7 +18,7 @@ pub fn draw(app: &App, frame: &mut Frame) {
 }
 
 fn draw_timer_screen(app: &App, frame: &mut Frame) {
-    let title = Line::from("Pomodoro").bold().red();
+    let title = Line::from("Fokus").bold().red();
     let area = frame.area();
     frame.render_widget(Clear, area);
     frame.render_widget(
@@ -53,7 +53,7 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
         let session_count = app.get_session_count();
 
         let content = format!(
-            "Work duration: {} minutes\n\
+            "Fokus duration: {} minutes\n\
             Break duration: {} / {} minutes\n\
             Sessions completed: {}\n\n\
             Press 's' to start {}",
@@ -62,7 +62,7 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
             settings.long_break_time,
             session_count,
             match app.current_state {
-                TimerState::Work => "work session",
+                TimerState::Work => "fokus session",
                 TimerState::Break => {
                     let settings = app.get_settings();
                     let session_count = app.get_session_count();
@@ -95,14 +95,14 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Min(0),
-                Constraint::Length(3),
+                Constraint::Length(4),
                 Constraint::Min(0),
                 Constraint::Length(controls_height),
             ])
             .split(inner_area);
 
         let session_info = match app.current_state {
-            TimerState::Work => "🍅 Work Session",
+            TimerState::Work => "🎧 Fokus Session",
             TimerState::Break => {
                 let settings = app.get_settings();
                 let session_count = app.get_session_count();
@@ -115,7 +115,7 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
         };
 
         let timer_content = format!(
-            "{}\n{}",
+            "{}\n\n{}",
             session_info,
             if app.countdown_running {
                 format!(
@@ -182,7 +182,7 @@ fn draw_settings_screen(app: &App, frame: &mut Frame) {
 
     let session_count = app.get_session_count();
     let header_text = format!(
-        "Configure your Pomodoro settings\nSessions completed: {}",
+        "Configure your Fokus settings\nSessions completed: {}",
         session_count
     );
     let header = Paragraph::new(header_text)
@@ -196,14 +196,14 @@ fn draw_settings_screen(app: &App, frame: &mut Frame) {
 
     let items: Vec<ListItem> = vec![
         create_setting_item(
-            "Working Time",
+            "Fokus Time",
             &format!("{} minutes", settings.working_time),
             matches!(current_field, SettingsField::WorkingTime),
             editing,
             app.get_input_buffer(),
         ),
         create_setting_item(
-            "Short Break Time",
+            "Break Time",
             &format!("{} minutes", settings.break_time),
             matches!(current_field, SettingsField::BreakTime),
             editing,
