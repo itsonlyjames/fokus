@@ -30,8 +30,11 @@ Options:
 
 ## TODO
 
-- [ ] Notification clicking takes you to window
-- [ ] Notification actions
-  - Need to figure out how to async wait notification but still run the main thread
+- [ ] Set current terminal identifier for notifications (WIP)
+- [ ] Store statistics
 - [x] Fix skip session panicking
 - [x] Fix session counter not working every nth time
+
+~- [ ] Notification clicking takes you to window~
+~- [ ] Notification actions~
+~- Need to figure out how to async wait notification but still run the main thread~
