@@ -9,6 +9,7 @@ use tokio::{
     task::JoinHandle,
 };
 
+mod activate;
 mod cli;
 mod config;
 mod settings;
@@ -150,22 +151,15 @@ impl App {
                             }
                         };
 
-
-
                         Notification::new()
                             .summary("Pomodoro")
                             .body(summary)
                             // .message(body)
                             .sound_name("Blow")
                             .icon("alarm")
-                            // .main_button(MainButton::SingleAction("Start Next Session"))
                             .show()?;
 
-                        // if let Ok(response) = response {
-                        //     notification_actions::handle_response(response);
-                        // } else {
-                        //    eprint!("Failed to send notification");
-                        // };
+                        let _ = activate::activate_fokus_tty();
 
                         self.current_state = match self.current_state {
                             TimerState::Work => TimerState::Break,
