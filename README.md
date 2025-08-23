@@ -1,6 +1,6 @@
 <h1 align="center">Fokus</h1>
 
-Learning Rust by building a [Pomodoro](https://en.wikipedia.org/wiki/Pomodoro_Technique) timer.
+Learning Rust by building a TUI [Pomodoro](https://en.wikipedia.org/wiki/Pomodoro_Technique) timer.
 
 Critiques welcome.
 
