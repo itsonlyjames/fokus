@@ -30,11 +30,13 @@ Options:
 
 ## TODO
 
-- [ ] Set current terminal identifier for notifications (WIP)
-- [ ] Store statistics
+- [x] Store statistics
+    - [ ] View sessions per day in UI
 - [x] Fix skip session panicking
 - [x] Fix session counter not working every nth time
 
+Notification enhancements are out of scope for this project.
+~- [ ] Set current terminal identifier for notifications (WIP)~
 ~- [ ] Notification clicking takes you to window~
 ~- [ ] Notification actions~
 ~- Need to figure out how to async wait notification but still run the main thread~

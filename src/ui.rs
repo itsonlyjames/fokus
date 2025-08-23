@@ -1,6 +1,6 @@
 use crate::{
     App, TimerState,
-    settings::{Screen, SettingsField},
+    settings::{Screen, SettingsField, Settings},
 };
 use ratatui::{
     Frame,
@@ -49,24 +49,30 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
             ])
             .split(inner_area);
 
-        let settings = app.get_settings();
-        let session_count = app.get_session_count();
+        let Settings {
+            working_time,
+            break_time,
+            long_break_time,
+            ..
+        } = app.get_settings();
 
         let content = format!(
             "Fokus duration: {} minutes\n\
             Break duration: {} / {} minutes\n\
-            Sessions completed: {}\n\n\
+            Sessions completed: {} (today: {})\n\n\
             Press 's' to start {}",
-            settings.working_time,
-            settings.break_time,
-            settings.long_break_time,
-            session_count,
+            working_time,
+            break_time,
+            long_break_time,
+            app.stats.get_total_sessions(),
+            app.stats.get_today_sessions(),
             match app.current_state {
                 TimerState::Work => "fokus session",
                 TimerState::Break => {
                     let settings = app.get_settings();
-                    let session_count = app.get_session_count();
-                    if session_count > 0 && session_count % settings.sessions_until_long_break == 0
+                    let count_until_long_break = app.get_long_break_count();
+                    if count_until_long_break > 0
+                        && count_until_long_break % settings.sessions_until_long_break == 0
                     {
                         "long break"
                     } else {
@@ -105,8 +111,10 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
             TimerState::Work => "🎧 Fokus Session",
             TimerState::Break => {
                 let settings = app.get_settings();
-                let session_count = app.get_session_count();
-                if session_count > 0 && session_count % settings.sessions_until_long_break == 0 {
+                let count_until_long_break = app.get_long_break_count();
+                if count_until_long_break > 0
+                    && count_until_long_break % settings.sessions_until_long_break == 0
+                {
                     "☕ Long Break"
                 } else {
                     "☕ Short Break"
@@ -180,10 +188,10 @@ fn draw_settings_screen(app: &App, frame: &mut Frame) {
         ])
         .split(inner_area);
 
-    let session_count = app.get_session_count();
+    let total_sessions = app.stats.get_total_sessions();
     let header_text = format!(
         "Configure your Fokus settings\nSessions completed: {}",
-        session_count
+        total_sessions
     );
     let header = Paragraph::new(header_text)
         .alignment(Alignment::Center)

@@ -14,6 +14,7 @@ mod config;
 mod settings;
 mod timer;
 mod ui;
+mod stats;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -61,8 +62,10 @@ pub struct App {
     settings_field: settings::SettingsField,
     editing_field: bool,
     input_buffer: String,
-    session_count: u64,
+    long_break_count: u64,
     settings_saved_message: Option<std::time::Instant>,
+    stats: stats::SessionStats,
+    stats_saved_message: Option<std::time::Instant>,
 }
 
 impl App {
@@ -76,6 +79,8 @@ impl App {
             long_break_time: args.long_break_time,
             sessions_until_long_break: args.sessions_until_break_time,
         });
+
+        let stats = stats::SessionStats::load_stats().unwrap_or_default();
 
         (
             Self {
@@ -94,8 +99,10 @@ impl App {
                 settings_field: settings::SettingsField::WorkingTime,
                 editing_field: false,
                 input_buffer: String::new(),
-                session_count: 0,
+                long_break_count: 0,
                 settings_saved_message: None,
+                stats,
+                stats_saved_message: None,
             },
             rx,
         )
@@ -135,16 +142,20 @@ impl App {
 
                         let (summary, _body) = match self.current_state {
                             TimerState::Work => {
-                                self.session_count += 1;
-                                if self.session_count % self.settings.sessions_until_long_break == 0 {
+                                self.long_break_count += 1;
+
+                                self.stats.increment_session();
+                                self.save_stats();
+
+                                if self.long_break_count % self.settings.sessions_until_long_break == 0 {
                                     ("Session Finished", "Time for a long break!")
                                 } else {
                                     ("Session Finished", "Time for a short break")
                                 }
                             },
                             TimerState::Break => {
-                                if self.session_count > 0 && self.session_count % self.settings.sessions_until_long_break == 0 {
-                                    self.session_count = 0;
+                                if self.long_break_count > 0 && self.long_break_count % self.settings.sessions_until_long_break == 0 {
+                                    self.long_break_count = 0;
                                 }
                                 ("Break Finished", "Time for another session")
                             }
@@ -193,8 +204,8 @@ impl App {
             let duration = match self.current_state {
                 TimerState::Work => self.settings.get_working_time_seconds(),
                 TimerState::Break => {
-                    if self.session_count > 0
-                        && self.session_count % self.settings.sessions_until_long_break == 0
+                    if self.long_break_count > 0
+                        && self.long_break_count % self.settings.sessions_until_long_break == 0
                     {
                         self.settings.get_long_break_time_seconds()
                     } else {
@@ -264,7 +275,9 @@ impl App {
         self.timer_active = false;
 
         if matches!(self.current_state, TimerState::Work) {
-            self.session_count += 1;
+            self.long_break_count += 1;
+            self.stats.increment_session();
+            self.save_stats();
         }
 
         self.current_state = match self.current_state {
@@ -293,8 +306,8 @@ impl App {
         &self.input_buffer
     }
 
-    pub fn get_session_count(&self) -> u64 {
-        self.session_count
+    pub fn get_long_break_count(&self) -> u64 {
+        self.long_break_count
     }
 
     fn on_key_event(&mut self, key: KeyEvent) {
@@ -415,6 +428,22 @@ impl App {
         }
         self.editing_field = false;
         self.input_buffer.clear();
+    }
+
+    // Add new methods to App:
+    fn save_stats(&mut self) {
+        match stats::SessionStats::save_stats(&self.stats) {
+            Ok(_) => {
+                self.stats_saved_message = Some(std::time::Instant::now());
+            }
+            Err(e) => {
+                eprintln!("Failed to save stats: {}", e);
+            }
+        }
+    }
+    
+    pub fn get_stats(&self) -> &stats::SessionStats {
+        &self.stats
     }
 
     fn quit(&mut self) {
