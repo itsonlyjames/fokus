@@ -66,6 +66,7 @@ pub struct App {
     settings_saved_message: Option<std::time::Instant>,
     stats: stats::SessionStats,
     stats_saved_message: Option<std::time::Instant>,
+    pub show_help: bool,
 }
 
 impl App {
@@ -103,6 +104,7 @@ impl App {
                 settings_saved_message: None,
                 stats,
                 stats_saved_message: None,
+                show_help: false,
             },
             rx,
         )
@@ -311,6 +313,11 @@ impl App {
     }
 
     fn on_key_event(&mut self, key: KeyEvent) {
+        if let KeyCode::Char('?') = key.code {
+            self.show_help = !self.show_help;
+            return;
+        }
+
         match self.current_screen {
             settings::Screen::Timer => self.handle_timer_input(key),
             settings::Screen::Settings => self.handle_settings_input(key),

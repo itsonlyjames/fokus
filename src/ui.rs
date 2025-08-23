@@ -1,6 +1,6 @@
 use crate::{
     App, TimerState,
-    settings::{Screen, SettingsField, Settings},
+    settings::{Screen, Settings, SettingsField},
 };
 use ratatui::{
     Frame,
@@ -35,18 +35,26 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
     };
 
     if app.remaining_timer == 0 && !app.countdown_running {
-        let controls_text =
-            "'s' start | 'p' pause | 'r' reset | 'S' skip | 'o' settings | 'q' quit";
-        let controls_height = calculate_text_height(controls_text, inner_area.width);
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
+        let controls_text = "'s' start | 'S' skip | 'o' settings | 'q' quit | '?' hide help";
+        let constraints = if app.show_help {
+            let controls_height = calculate_text_height(controls_text, inner_area.width);
+            vec![
                 Constraint::Min(0),
                 Constraint::Length(6),
                 Constraint::Min(0),
                 Constraint::Length(controls_height),
-            ])
+            ]
+        } else {
+            vec![
+                Constraint::Min(0),
+                Constraint::Length(6),
+                Constraint::Min(0),
+            ]
+        };
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(constraints)
             .split(inner_area);
 
         let Settings {
@@ -83,28 +91,39 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
         );
         frame.render_widget(Paragraph::new(content).centered(), chunks[1]);
 
-        frame.render_widget(
-            Paragraph::new(controls_text)
-                .centered()
-                .style(Style::default().fg(Color::Gray))
-                .wrap(Wrap { trim: true }),
-            chunks[3],
-        );
+        if app.show_help {
+            frame.render_widget(
+                Paragraph::new(controls_text)
+                    .centered()
+                    .style(Style::default().fg(Color::Gray))
+                    .wrap(Wrap { trim: true }),
+                chunks[3],
+            );
+        }
     } else {
         let controls_text = match app.countdown_running {
-            true => "'p' pause/resume | 'S' skip | 'o' settings | 'q' quit",
-            false => "'p' pause/resume | 'r' reset | 'S' skip | 'o' settings | 'q' quit",
+            true => "'p' pause | 'S' skip | 'o' settings | 'q' quit | '?' hide help",
+            false => "'p' resume | 'r' reset | 'S' skip | 'o' settings | 'q' quit | '?' hide help",
         };
-        let controls_height = calculate_text_height(controls_text, inner_area.width);
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
+        let constraints = if app.show_help {
+            let controls_height = calculate_text_height(controls_text, inner_area.width);
+            vec![
                 Constraint::Min(0),
                 Constraint::Length(4),
                 Constraint::Min(0),
                 Constraint::Length(controls_height),
-            ])
+            ]
+        } else {
+            vec![
+                Constraint::Min(0),
+                Constraint::Length(4),
+                Constraint::Min(0),
+            ]
+        };
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(constraints)
             .split(inner_area);
 
         let session_info = match app.current_state {
@@ -142,13 +161,15 @@ fn draw_timer_screen(app: &App, frame: &mut Frame) {
 
         frame.render_widget(Paragraph::new(timer_content).centered(), chunks[1]);
 
-        frame.render_widget(
-            Paragraph::new(controls_text)
-                .centered()
-                .style(Style::default().fg(Color::Gray))
-                .wrap(Wrap { trim: true }),
-            chunks[3],
-        );
+        if app.show_help {
+            frame.render_widget(
+                Paragraph::new(controls_text)
+                    .centered()
+                    .style(Style::default().fg(Color::Gray))
+                    .wrap(Wrap { trim: true }),
+                chunks[3],
+            );
+        }
     };
 }
 
