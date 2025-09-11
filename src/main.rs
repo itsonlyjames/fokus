@@ -4,6 +4,9 @@ use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyM
 use futures::{FutureExt, StreamExt};
 use notify_rust::{Notification, get_bundle_identifier_or_default, set_application};
 use ratatui::{DefaultTerminal, Frame};
+use serde::{Deserialize, Serialize};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::UnixListener;
 use tokio::{
     sync::{broadcast, mpsc},
     task::JoinHandle,
@@ -12,9 +15,19 @@ use tokio::{
 mod cli;
 mod config;
 mod settings;
+mod stats;
 mod timer;
 mod ui;
-mod stats;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ExternalCommand {
+    Start,
+    Pause,
+    Reset,
+    Skip,
+    Quit,
+    Status,
+}
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -69,9 +82,35 @@ pub struct App {
     pub show_help: bool,
 }
 
+async fn socket_server(tx: mpsc::Sender<ExternalCommand>) -> std::io::Result<()> {
+    let path = "/tmp/pomodoro.sock";
+    // remove old socket if it exists
+    let _ = std::fs::remove_file(path);
+
+    let listener = UnixListener::bind(path)?;
+    println!("Listening for commands on {}", path);
+
+    loop {
+        let (mut stream, _) = listener.accept().await?;
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            let mut buf = Vec::new();
+            if stream.read_to_end(&mut buf).await.is_ok() {
+                if let Ok(cmd) = serde_json::from_slice::<ExternalCommand>(&buf) {
+                    let _ = tx.send(cmd).await;
+                    let _ = stream.write_all(b"OK\n").await;
+                } else {
+                    let _ = stream.write_all(b"ERR\n").await;
+                }
+            }
+        });
+    }
+}
+
 impl App {
-    pub fn new(args: Cli) -> (Self, mpsc::Receiver<u64>) {
+    pub fn new(args: Cli) -> (Self, mpsc::Receiver<u64>, mpsc::Receiver<ExternalCommand>, mpsc::Sender<ExternalCommand>) {
         let (tx, rx) = mpsc::channel(100);
+        let (cmd_tx, cmd_rx) = mpsc::channel(100);
         let (running_tx, _) = broadcast::channel(100);
 
         let settings = config::Config::load_settings().unwrap_or_else(|_| settings::Settings {
@@ -107,6 +146,8 @@ impl App {
                 show_help: false,
             },
             rx,
+            cmd_rx,
+            cmd_tx,
         )
     }
 
@@ -114,6 +155,7 @@ impl App {
         mut self,
         mut terminal: DefaultTerminal,
         mut rx: mpsc::Receiver<u64>,
+        mut cmd_rx: mpsc::Receiver<ExternalCommand>,
     ) -> Result<()> {
         self.app_running = true;
 
@@ -133,6 +175,24 @@ impl App {
                             }
                         }
                         _ => {}
+                    }
+                }
+                Some(cmd) = cmd_rx.recv() => {
+                    match cmd {
+                        ExternalCommand::Start => self.start_timer(),
+                        ExternalCommand::Pause => self.pause_timer(),
+                        ExternalCommand::Reset => self.reset_timer(),
+                        ExternalCommand::Skip  => self.skip_session(),
+                        ExternalCommand::Quit  => self.quit(),
+                        ExternalCommand::Status => {
+                            // Create a JSON reply with current state
+                            let reply = serde_json::json!({
+                                "state": format!("{:?}", self.current_state),
+                                "working_time": self.settings.working_time,
+                                "remaining": self.remaining_timer,
+                            });
+                            println!("{}", reply); // print to stdout, will be piped back
+                        }
                     }
                 }
                 Some(secs) = rx.recv() => {
@@ -448,7 +508,7 @@ impl App {
             }
         }
     }
-    
+
     pub fn get_stats(&self) -> &stats::SessionStats {
         &self.stats
     }
@@ -468,15 +528,20 @@ async fn main() -> Result<()> {
     #[cfg(feature = "debug")]
     console_subscriber::init();
 
-    // Set identifier for notifications
     #[cfg(target_os = "macos")]
-    let bundle = get_bundle_identifier_or_default("terminal");
-    set_application(&bundle).unwrap();
+    {
+        let bundle = get_bundle_identifier_or_default("terminal");
+        set_application(&bundle).unwrap();
+    }
 
     let args = Cli::parse();
     let terminal = ratatui::init();
-    let (app, rx) = App::new(args);
-    let result = app.run(terminal, rx).await;
+    let (app, rx, cmd_rx, cmd_tx) = App::new(args);
+
+    // spawn socket server
+    tokio::spawn(socket_server(cmd_tx));
+
+    let result = app.run(terminal, rx, cmd_rx).await;
     ratatui::restore();
     result
 }
