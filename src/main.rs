@@ -12,9 +12,9 @@ use tokio::{
 mod cli;
 mod config;
 mod settings;
+mod stats;
 mod timer;
 mod ui;
-mod stats;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -448,16 +448,18 @@ impl App {
             }
         }
     }
-    
+
     pub fn get_stats(&self) -> &stats::SessionStats {
         &self.stats
     }
 
     fn quit(&mut self) {
-        self.app_running = false;
-        use crossterm::execute;
-        use crossterm::terminal::{Clear, ClearType};
-        let _ = execute!(std::io::stdout(), Clear(ClearType::All));
+        if !self.timer_active {
+            self.app_running = false;
+            use crossterm::execute;
+            use crossterm::terminal::{Clear, ClearType};
+            let _ = execute!(std::io::stdout(), Clear(ClearType::All));
+        }
     }
 }
 
